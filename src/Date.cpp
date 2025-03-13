@@ -1,15 +1,9 @@
 #include "Date.hpp"
 #include <iostream>
 
-Date::Date(int day, int month, int year)
+Date::Date(int day, int month, int year) : day(day), month(month), year(year) 
 {
-    if (this->check_date(day, month, year))
-    {
-            this->day = day;
-            this->month = month;
-            this->year = year;
-    }
-    else
+    if (!this->check_date(day, month, year))
         throw std::invalid_argument("Incorrect date");
 };
 
@@ -52,7 +46,7 @@ void Date::set_day(const int new_day)
         this->day = new_day;
     }
     else 
-        throw std::invalid_argument("Incorrect day");
+        throw std::invalid_argument("Incorrect date");
 };
 
 int Date::get_month() const
@@ -67,7 +61,7 @@ void Date::set_month(const int new_month)
         this->month = new_month;
     }
     else 
-        throw std::invalid_argument("Incorrect month");
+        throw std::invalid_argument("Incorrect date");
 }
 
 int Date::get_year() const
@@ -77,10 +71,12 @@ int Date::get_year() const
 
 void Date::set_year(const int new_year)
 {
-    if (new_year >= 0)
+    if (check_date(this->day, this->month, new_year))
+    {
         this->year = new_year;
-    else
-        throw std::invalid_argument("Incorrect year");
+    }
+    else 
+        throw std::invalid_argument("Incorrect date");
 };
 
 std::string Date::get_day_name(int day, int month, int year) const
@@ -97,41 +93,40 @@ std::string Date::get_day_name(int day, int month, int year) const
 
     int day_index = (day + ((13 * (month + 1)) / 5) + k + (k / 4) + (j / 4) - (2 * j)) % 7;
     day_index = (day_index + 7) % 7;
-
-    return this->day_name[day_index];
+    return this->day_names[day_index];
 };
 
-std::string Date::get_formatted_date(const int format) const
+std::string Date::get_formatted_date(const DateFormats format) const
 {
-    std::string formatted_date;
+    
     switch(format)
     {
-        case 1:
-        {
-            formatted_date = (std::to_string(this->day) + "/" + std::to_string(this->month) + "/" + std::to_string(this->year));
+        case DateFormats::DAY_MONTH_YEAR:
+            return (std::to_string(this->day) + "/" + std::to_string(this->month) + "/" + std::to_string(this->year));
             break;
-        };
-        case 2:
-        {
-            formatted_date = (std::to_string(this->day) + "/" + this->length_of_each_month[this->month - 1].second + "/" + std::to_string(this->year));
+
+        case DateFormats::MONTH_DAY_YEAR:
+            return (std::to_string(this->month) + "/" + std::to_string(this->day) + "/" + std::to_string(this->year));
             break;
-        };
-        case 3:
-        {
-            std::string name_of_the_day = get_day_name(this->day, this->month, this->year);
-            formatted_date = (name_of_the_day + " " + std::to_string(this->day) + "." + std::to_string(this->month) + "." + std::to_string(this->year));
+        case DateFormats::YEAR_MONTH_DAY:
+            return (std::to_string(this->year) + "/" + std::to_string(this->month) + "/" + std::to_string(this->day));
             break;
-        };
+        case DateFormats::DAY_MONTH_YEAR_NAME:
+            return (std::to_string(this->day) + "/" + std::to_string(this->month) + "/" + std::to_string(this->year) + " " + this->get_day_name(this->day, this->month, this->year));
+            break;
+        case DateFormats::MONTH_DAY_YEAR_NAME:
+            return (std::to_string(this->month) + "/" + std::to_string(this->day) + "/" + std::to_string(this->year) + " " + this->get_day_name(this->day, this->month, this->year));
+            break;
+        case DateFormats::YEAR_MONTH_DAY_NAME:
+            return (std::to_string(this->year) + "/" + std::to_string(this->month) + "/" + std::to_string(this->day) + " " + this->get_day_name(this->day, this->month, this->year));
+            break;
         default:
-        {
-            formatted_date = "Invalid date format chosen";
+            return (std::to_string(this->day) + "/" + std::to_string(this->month) + "/" + std::to_string(this->year));
             break;
-        }
     }
-    return formatted_date;
 };
 
-bool Date::check_date(const int day, const int month, const int year) const
+bool Date::check_date(int day, int month, int year) const
 {
     return
     (
@@ -139,11 +134,17 @@ bool Date::check_date(const int day, const int month, const int year) const
         month > 0 &&
         month < 13 &&
         day > 0 &&
-        (day <= this->length_of_each_month[month - 1].first
+        (
+        (day <= this->length_of_each_month[month - 1])
         ||
-        day == 29 && ((year % 4 == 0 && year % 100 != 0) || (year % 400 == 0))
+        (day == 29 && month == 2 && this->is_leap_year(year))
         )
     );
+}
+
+bool Date::is_leap_year(int year) const
+{
+    return ((year % 4 == 0 && year % 100 != 0) || year % 400 == 0);
 }
 
 bool Date::operator==(const Date& other) const 
@@ -163,8 +164,25 @@ bool Date::operator>(const Date& other) const
 
 bool Date::operator<(const Date& other) const 
 {
-    return (this->year < other.get_year() || this->year == other.get_year() && this->month < other.get_month()) || 
-    (this->year == other.get_year() && this->month == other.get_month() && this->day <= other.get_day());
+    if (this->year < other.get_year())
+    {
+        return true;
+    }
+    else if (this->year > other.get_year())
+    {
+        return false;
+    }
+
+    if (this->month < other.get_month())
+    {
+        return true;
+    }
+    else if (this->month > other.get_month())
+    {
+        return false;
+    }
+
+    return this->day < other.get_day();
 }
 
 bool Date::operator<=(const Date& other) const
@@ -179,7 +197,7 @@ bool Date::operator>=(const Date& other) const
 
 std::ostream& operator<<(std::ostream& os, const Date& date) 
 {
-    os << date.get_formatted_date(1);
+    os << date.get_formatted_date(DateFormats::DAY_MONTH_YEAR);
     return os;
 }
 
@@ -189,15 +207,115 @@ std::istream& operator>>(std::istream& is, Date& date)
     int day, month, year;
     is >> day >> delimiter1 >> month >> delimiter2 >> year;
 
-    if (delimiter1 == '/' && delimiter2 == '/' && day > 0 && month > 0 && year >= 0) 
+
+    if (delimiter1 == '/' && delimiter2 == '/' && day > 0 && month > 0 && year >= 0 && date.check_date(day, month, year))
     {
         date.set_day(day);
         date.set_month(month);
         date.set_year(year);
     } else 
     {
-        is.setstate(std::ios::failbit); // Set the failbit to indicate an error
+        throw std::invalid_argument("Incorrect date");
     }
 
     return is;
 }
+
+Date Date::operator+(const int days) const
+{
+    Date new_date = *this;
+    new_date += days;
+    return new_date;
+}
+
+Date Date::operator-(const int days) const
+{
+    Date new_date = *this;
+    new_date -= days;
+    return new_date;
+}
+
+Date& Date::operator+=(const int days)
+{
+    if (days < 0)
+    {
+        return *this -= -days;
+    }
+
+    int days_to_add = days;
+    while (days_to_add > 0)
+    {
+        int days_in_current_month = this->length_of_each_month[this->month - 1] - this->day + 1;
+
+        if (this->is_leap_year(this->year) && this->month == 2)
+        {
+            days_in_current_month++;
+        }
+
+        if (days_in_current_month <= days_to_add)
+        {
+            days_to_add -= days_in_current_month;
+            this->day = 1;
+            if (this->month == 12)
+            {
+                this->month = 1;
+                this->year++;
+            }
+            else
+            {
+                this->month++;
+            }
+        }
+        else
+        {
+            this->day += days_to_add;
+            days_to_add = 0;
+        }
+    }
+
+    return *this;
+}
+
+Date& Date::operator-=(const int days)
+{
+
+    if (days < 0)
+    {
+        return *this += -days;
+    }
+
+    int days_to_subtract = days;
+    while (days_to_subtract > 0)
+    {
+        if (this->day <= days_to_subtract)
+        {
+            days_to_subtract -= this->day;
+            if (this->month == 1)
+            {
+                this->month = 12;
+                this->year--;
+            }
+            else
+            {
+                this->month--;
+            }
+            this->day = this->length_of_each_month[this->month - 1];
+            if (this->is_leap_year(this->year) && this->month == 2)
+            {
+                this->day++;
+            }
+        }
+        else
+        {
+            this->day -= days_to_subtract;
+            days_to_subtract = 0;
+        }
+    }
+
+    return *this;
+}
+
+const int Date::length_of_each_month[12] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+const std::string Date::day_names[7] = {"Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday"};
+const std::string Date::month_names[12] = {"January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"};
+
